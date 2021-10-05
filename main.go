@@ -28,30 +28,34 @@ func main() {
 	for _, device := range devices {
 		if device != nil {
 			info, err := device.DeviceInfo()
-			if err == nil {
-				if info.FriendlyDeviceName == conf.DeviceName {
-					if err := device.LaunchApp(ABCAppId, nil); err != nil {
-						panic(err)
-					}
-
-					// app takes a long ass time to load
-					time.Sleep(10 * time.Second)
-
-					// keys needed to navigate to ABC Live TV
-					device.Keypress(roku.RightKey)
-					time.Sleep(2 * time.Second)
-					device.Keypress(roku.RightKey)
-					time.Sleep(2 * time.Second)
-					device.Keypress(roku.SelectKey)
-
-					// live TV takes an even longer time to load
-					time.Sleep(12 * time.Second)
-
-					// navigate to the "Watch" button and click it
-					device.Keypress(roku.DownKey)
-					device.Keypress(roku.SelectKey)
-				}
+			if err != nil {
+				log.Println("could not get info for a device, skipping")
+				continue
 			}
+
+			if info.FriendlyDeviceName == conf.DeviceName {
+				if err := device.LaunchApp(ABCAppId, nil); err != nil {
+					log.Fatalf("failed to launch ABC app")
+				}
+
+				// app takes a long ass time to load
+				time.Sleep(10 * time.Second)
+
+				// keys needed to navigate to ABC Live TV
+				device.Keypress(roku.RightKey)
+				time.Sleep(2 * time.Second)
+				device.Keypress(roku.RightKey)
+				time.Sleep(2 * time.Second)
+				device.Keypress(roku.SelectKey)
+
+				// live TV takes an even longer time to load
+				time.Sleep(12 * time.Second)
+
+				// navigate to the "Watch" button and click it
+				device.Keypress(roku.DownKey)
+				device.Keypress(roku.SelectKey)
+			}
+
 		}
 	}
 }
