@@ -6,12 +6,17 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/kelseyhightower/envconfig"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	rk "github.com/picatz/roku"
 	"github.com/pkg/errors"
 	"github.com/scevallos/WheelOfFortuneEveryday/pkg/roku"
 )
+
+type Config struct {
+	TVAddress string `envconfig:"TV_ADDRESS"`
+}
 
 type Service struct {
 	Device *rk.Endpoint
@@ -27,23 +32,33 @@ type Job struct {
 }
 
 func NewService(client *roku.Client) (*Service, error) {
-	devices, err := client.Search()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed roku search")
-	}
-
-	num := len(devices)
-	switch {
-	case num == 0:
-		// TODO: add retry bc randomly, no devices will be found for some reason
-		return nil, errors.New("no devices found with configured name")
-	case num > 1:
-		return nil, errors.Errorf("unexpectedly found %d devices with that name\n", num)
+	conf := Config{}
+	if err := envconfig.Process("", &conf); err != nil {
+		return nil, err
 	}
 	// we need a single device to work with
+	var device *rk.Endpoint
+	if conf.TVAddress != "" {
+		// TODO
+	} else {
+		devices, err := client.Search()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed roku search")
+		}
+
+		num := len(devices)
+		switch {
+		case num == 0:
+			// TODO: add retry bc randomly, no devices will be found for some reason
+			return nil, errors.New("no devices found with configured name")
+		case num > 1:
+			return nil, errors.Errorf("unexpectedly found %d devices with that name\n", num)
+		}
+		device = devices[0]
+	}
 
 	svc := &Service{
-		Device: devices[0],
+		Device: device,
 		Client: client,
 	}
 
