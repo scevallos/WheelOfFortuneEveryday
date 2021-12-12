@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/kelseyhightower/envconfig"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/kelseyhightower/envconfig"
 	rk "github.com/picatz/roku"
 	"github.com/pkg/errors"
 	"github.com/scevallos/WheelOfFortuneEveryday/pkg/roku"
@@ -39,7 +39,9 @@ func NewService(client *roku.Client) (*Service, error) {
 	// we need a single device to work with
 	var device *rk.Endpoint
 	if conf.TVAddress != "" {
-		// TODO
+		// TODO: validate given address
+		fmt.Printf("Using configured address: %s\n", conf.TVAddress)
+		device = rk.NewEndpoint(conf.TVAddress)
 	} else {
 		devices, err := client.Search()
 		if err != nil {
