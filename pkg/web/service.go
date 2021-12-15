@@ -2,9 +2,10 @@ package web
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -19,9 +20,11 @@ type Config struct {
 }
 
 type Service struct {
-	Device *rk.Endpoint
-	Client *roku.Client
-	Router chi.Router
+	Device  *rk.Endpoint
+	Client  *roku.Client
+	Router  chi.Router
+	log     *log.Logger
+	healthy *int32
 }
 
 // Job is the request input, which describes the job that will be run
@@ -31,7 +34,7 @@ type Job struct {
 	AppName string `json:"appName"`
 }
 
-func NewService(client *roku.Client) (*Service, error) {
+func NewService(client *roku.Client, log *log.Logger, healthy *int32) (*Service, error) {
 	conf := Config{}
 	if err := envconfig.Process("", &conf); err != nil {
 		return nil, err
@@ -40,7 +43,7 @@ func NewService(client *roku.Client) (*Service, error) {
 	var device *rk.Endpoint
 	if conf.TVAddress != "" {
 		// TODO: validate given address
-		fmt.Printf("Using configured address: %s\n", conf.TVAddress)
+		log.Printf("Using configured address: %s\n", conf.TVAddress)
 		device = rk.NewEndpoint(conf.TVAddress)
 	} else {
 		devices, err := client.Search()
@@ -60,8 +63,10 @@ func NewService(client *roku.Client) (*Service, error) {
 	}
 
 	svc := &Service{
-		Device: device,
-		Client: client,
+		Device:  device,
+		Client:  client,
+		log:     log,
+		healthy: healthy,
 	}
 
 	r := chi.NewRouter()
@@ -80,8 +85,13 @@ func (s *Service) GetRouter() chi.Router {
 }
 
 func (s *Service) Routes(r chi.Router) {
+	r.Use(tracing, logging(s.log))
 	r.Get("/healthcheck", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(`OK`))
+		if atomic.LoadInt32(s.healthy) == 1 {
+			w.Write([]byte(`OK`))
+			return
+		}
+		w.WriteHeader(http.StatusServiceUnavailable)
 	})
 
 	// POST /api/v1/jobs CreateJob
@@ -122,7 +132,7 @@ func (s *Service) tvJobHandler(w http.ResponseWriter, r *http.Request) {
 
 	go func() {
 		if err := s.Client.StartApp(job.AppName, s.Device); err != nil {
-			fmt.Println("failed to start app: " + err.Error())
+			s.log.Println("failed to start app: " + err.Error())
 			return
 		}
 	}()

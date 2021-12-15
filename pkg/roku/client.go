@@ -1,7 +1,7 @@
 package roku
 
 import (
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
@@ -63,9 +63,10 @@ type Config struct {
 
 type Client struct {
 	*Config
+	log *log.Logger
 }
 
-func NewClient() (*Client, error) {
+func NewClient(log *log.Logger) (*Client, error) {
 	conf := &Config{}
 	if err := envconfig.Process("", conf); err != nil {
 		return nil, errors.Wrap(err, "failed to configure roku client")
@@ -73,12 +74,13 @@ func NewClient() (*Client, error) {
 
 	return &Client{
 		Config: conf,
+		log:    log,
 	}, nil
 }
 
 // Search returns a list of devices with a name that match the configured name
 func (c *Client) Search() (roku.Endpoints, error) {
-	fmt.Println("Searching for nearby devices...")
+	c.log.Println("Searching for nearby devices...")
 	devices, err := roku.Find(int(c.WaitTime.Seconds()))
 	if err != nil {
 		return nil, errors.Wrap(err, "SSDP request to find Roku devices failed")
@@ -112,7 +114,7 @@ func (c *Client) Search() (roku.Endpoints, error) {
 }
 
 func (c *Client) StartApp(appName string, device *roku.Endpoint) error {
-	fmt.Printf("Starting %s...\n", appName)
+	c.log.Printf("Starting %s...\n", appName)
 	id, ok := appIds[appName]
 	if !ok {
 		return errors.New("app '" + appName + "' does not have registered id mapping")
@@ -130,7 +132,7 @@ func (c *Client) StartApp(appName string, device *roku.Endpoint) error {
 
 	// turn on the TV if it's not already on
 	if info.PowerMode != "PowerOn" {
-		fmt.Println("Turning on TV...")
+		c.log.Println("Turning on TV...")
 		device.Keypress(roku.PowerOffKey)
 		time.Sleep(5 * time.Second)
 	}
