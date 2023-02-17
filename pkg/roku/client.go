@@ -21,7 +21,7 @@ var (
 	instructions = map[string]func(device *roku.Endpoint){
 		"ABC": func(device *roku.Endpoint) {
 			// app takes a long ass time to load
-			time.Sleep(10 * time.Second)
+			time.Sleep(15 * time.Second)
 
 			// keys needed to navigate to ABC Live TV
 			device.Keypress(roku.RightKey)
@@ -31,7 +31,7 @@ var (
 			device.Keypress(roku.SelectKey)
 
 			// live TV takes an even longer time to load
-			time.Sleep(12 * time.Second)
+			time.Sleep(16 * time.Second)
 
 			// navigate to the "Watch" button and click it
 			// otherwise the overlay won't go away
@@ -59,6 +59,12 @@ type Config struct {
 
 	// Time to wait during search for devices
 	WaitTime time.Duration `envconfig:"WAIT_TIME" default:"5s"`
+}
+
+type StartAppOptions struct {
+	AppName string
+	Device  *roku.Endpoint
+	Force   bool
 }
 
 type Client struct {
@@ -113,19 +119,19 @@ func (c *Client) Search() (roku.Endpoints, error) {
 	return matches, nil
 }
 
-func (c *Client) StartApp(appName string, device *roku.Endpoint) error {
-	c.log.Printf("Starting %s...\n", appName)
-	id, ok := appIds[appName]
+func (c *Client) StartApp(opts *StartAppOptions) error {
+	c.log.Printf("Starting %s...\n", opts.AppName)
+	id, ok := appIds[opts.AppName]
 	if !ok {
-		return errors.New("app '" + appName + "' does not have registered id mapping")
+		return errors.New("app '" + opts.AppName + "' does not have registered id mapping")
 	}
 
-	steps, ok := instructions[appName]
+	steps, ok := instructions[opts.AppName]
 	if !ok {
-		return errors.New("app '" + appName + "' does not have registered instructions")
+		return errors.New("app '" + opts.AppName + "' does not have registered instructions")
 	}
 
-	info, err := device.DeviceInfo()
+	info, err := opts.Device.DeviceInfo()
 	if err != nil {
 		return errors.Wrap(err, "failed to get device info")
 	}
@@ -133,16 +139,20 @@ func (c *Client) StartApp(appName string, device *roku.Endpoint) error {
 	// turn on the TV if it's not already on
 	if info.PowerMode != "PowerOn" {
 		c.log.Println("Turning on TV...")
-		device.Keypress(roku.PowerOffKey)
+		opts.Device.Keypress(roku.PowerOffKey)
 		time.Sleep(5 * time.Second)
+	} else if !opts.Force {
+		// unless we are force starting the app, do nothing if the TV is already on
+		c.log.Println("Doing nothing since TV is on already")
+		return nil
 	}
 
-	if err := device.LaunchApp(id, nil); err != nil {
-		return errors.Wrapf(err, "failed to launch %s app", appName)
+	if err := opts.Device.LaunchApp(id, nil); err != nil {
+		return errors.Wrapf(err, "failed to launch %s app", opts.AppName)
 	}
 
 	if steps != nil {
-		go steps(device)
+		go steps(opts.Device)
 	}
 
 	return nil

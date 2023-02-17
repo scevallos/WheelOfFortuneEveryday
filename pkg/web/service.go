@@ -5,7 +5,9 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"strconv"
 	"sync/atomic"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -127,12 +129,29 @@ func (s *Service) tvJobHandler(w http.ResponseWriter, r *http.Request) {
 		writeErrorString(w, "bad or missing app name: "+job.AppName, http.StatusBadRequest)
 		return
 	}
+	forceParam := r.URL.Query().Get("force")
+	force, err := strconv.ParseBool(forceParam)
+	if err != nil {
+		s.log.Println("ignoring invalid force param: " + err.Error())
+		force = false
+	}
 
 	w.WriteHeader(http.StatusAccepted)
 
 	go func() {
-		if err := s.Client.StartApp(job.AppName, s.Device); err != nil {
-			s.log.Println("failed to start app: " + err.Error())
+		opts := &roku.StartAppOptions{
+			AppName: job.AppName,
+			Device: s.Device,
+			Force: force,
+		}
+		if err := s.Client.StartApp(opts); err != nil {
+			s.log.Println("failed to start app, retrying... " + err.Error())
+			// retry after a few seconds
+			time.Sleep(3 * time.Second)
+			err = s.Client.StartApp(opts)
+			if err != nil {
+				s.log.Println("failed during retry")
+			}
 			return
 		}
 	}()
