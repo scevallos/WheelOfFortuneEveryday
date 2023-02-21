@@ -18,8 +18,13 @@ The REST API is exposed on port 8787.
 
 Outputs logs to a `wofed.log` file
 
-### Example
+### Examples
 
-TODO
+```sh
+curl localhost:8787/healthcheck
+```
 
+```sh
+curl -X POST localhost:8787/api/v1/jobs?force=true -H Content-Type:application/json -d '{"appName": "ABC"}'
+```
 
