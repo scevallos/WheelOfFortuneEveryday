@@ -141,8 +141,8 @@ func (s *Service) tvJobHandler(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		opts := &roku.StartAppOptions{
 			AppName: job.AppName,
-			Device: s.Device,
-			Force: force,
+			Device:  s.Device,
+			Force:   force,
 		}
 		if err := s.Client.StartApp(opts); err != nil {
 			s.log.Println("failed to start app, retrying... " + err.Error())

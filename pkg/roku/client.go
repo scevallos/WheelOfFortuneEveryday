@@ -12,8 +12,9 @@ import (
 var (
 	// mapping of app name to app IDs (needed to launch the app)
 	appIds = map[string]string{
-		"ABC": "73376",
-		"NBC": "68669",
+		"ABC":     "73376",
+		"NBC":     "68669",
+		"Live TV": "tvinput.dtv",
 	}
 
 	// instructions maps the apps to the set of steps that need to
@@ -50,12 +51,19 @@ var (
 			time.Sleep(2 * time.Second)
 			device.Keypress(roku.SelectKey)
 		},
+		"Live TV": func(device *roku.Endpoint) {
+		},
+	}
+
+	defaultOptions = &ClientOptions{
+		Logger: log.Default(),
+		Config: &Config{},
 	}
 )
 
 type Config struct {
 	// Name of device to search for
-	DeviceName string `envconfig:"DEVICE_NAME" required:"true"`
+	DeviceName string `envconfig:"DEVICE_NAME"`
 
 	// Time to wait during search for devices
 	WaitTime time.Duration `envconfig:"WAIT_TIME" default:"5s"`
@@ -72,15 +80,26 @@ type Client struct {
 	log *log.Logger
 }
 
-func NewClient(log *log.Logger) (*Client, error) {
-	conf := &Config{}
-	if err := envconfig.Process("", conf); err != nil {
-		return nil, errors.Wrap(err, "failed to configure roku client")
+type ClientOptions struct {
+	Logger *log.Logger
+	Config *Config
+}
+
+func NewClient(options *ClientOptions) (*Client, error) {
+	if options == nil {
+		options = defaultOptions
+	}
+
+	conf := options.Config
+	if conf == nil {
+		if err := envconfig.Process("", conf); err != nil {
+			return nil, errors.Wrap(err, "failed to configure roku client")
+		}
 	}
 
 	return &Client{
 		Config: conf,
-		log:    log,
+		log:    options.Logger,
 	}, nil
 }
 

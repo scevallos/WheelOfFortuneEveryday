@@ -17,13 +17,14 @@ const (
 	port = ":8787"
 )
 
-var (
-	healthy int32
-)
+var healthy int32
 
 func main() {
 	logger := logging.NewLogger()
-	client, err := roku.NewClient(logger)
+	client, err := roku.NewClient(&roku.ClientOptions{
+		Logger: logger,
+		Config: &roku.Config{},
+	})
 	panicIfErr(err)
 
 	service, err := web.NewService(client, logger, &healthy)
