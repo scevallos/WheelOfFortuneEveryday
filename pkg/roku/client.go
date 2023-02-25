@@ -12,9 +12,9 @@ import (
 var (
 	// mapping of app name to app IDs (needed to launch the app)
 	appIds = map[string]string{
-		"ABC":     "73376",
+		"ABC":     roku.ABC,
 		"NBC":     "68669",
-		"Live TV": "tvinput.dtv",
+		"Live TV": roku.LiveTV,
 	}
 
 	// instructions maps the apps to the set of steps that need to
